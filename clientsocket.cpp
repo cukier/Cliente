@@ -31,6 +31,7 @@ bool ClientSocket::receberModelo(const QString &host,
                                  const quint16 &port)
 {
     if (!conectar(host, port)) {
+        qDebug() << "<ClientSocket> falha na conexao";
         return false;
     }
 
@@ -65,7 +66,7 @@ bool ClientSocket::conectar(const QString &host, const quint16 &port)
 bool ClientSocket::enviar(const QString msg)
 {
     if (!(m_soket && m_soket->isOpen())) {
-        qDebug() << "<Cliente> socket nao existente ou fechado";
+        qDebug() << "<ClientSocket> socket nao existente ou fechado";
         return false;
     }
 
@@ -82,12 +83,12 @@ bool ClientSocket::fecharConexao()
 {
     if (m_soket && m_soket->isOpen()) {
         m_soket->close();
-        qDebug() << "<Cliente> socket fechado com sucesso";
+        qDebug() << "<ClientSocket> socket fechado com sucesso";
 
         return true;
     }
 
-    qDebug() << "<Cliente> erro ao tentar fechar o socket";
+    qDebug() << "<ClientSocket> erro ao tentar fechar o socket";
 
     return false;
 }
@@ -97,19 +98,19 @@ void ClientSocket::socketError(QAbstractSocket::SocketError socketError)
     if (socketError == QTcpSocket::RemoteHostClosedError)
         return;
 
-    qDebug() << "<Cliente> socket error: " << socketError;
+    qDebug() << "<ClientSocket> socket error: " << socketError;
 
     m_soket->close();
 }
 
 void ClientSocket::connected()
 {
-    qDebug() << "<Cliente> conectado";
+    qDebug() << "<ClientSocket> conectado";
 }
 
 void ClientSocket::disconnected()
 {
-    qDebug() << "<Cliente> desconectado";
+    qDebug() << "<ClientSocket> desconectado";
 
     if (m_soket && m_soket->isOpen())
         m_soket->close();
@@ -118,9 +119,9 @@ void ClientSocket::disconnected()
 void ClientSocket::bytesWritten(qint64 bytes)
 {
     if (bytes == bytesEnviados) {
-        qDebug() << "<Cliente> " << bytes << " bytes written...";
+        qDebug() << "<ClientSocket> " << bytes << " bytes written...";
     } else {
-        qDebug() << "<Cliente> falha no envio de" << bytes << " bytes";
+        qDebug() << "<ClientSocket> falha no envio de" << bytes << " bytes";
     }
 
     bytesEnviados = 0;
@@ -134,56 +135,50 @@ void ClientSocket::readyRead()
 
     bool reenviar = false;
     QString rcv = QString(m_soket->readAll());
+    qDebug() << "<ClientSocket> recebido " << rcv;
 
-    if (rcv.contains("colunas:")) {
-        QStringList aux = rcv.split("colunas:");
+    if (rcv.size()) {
+        QStringList rows = rcv.split('\n');
 
-        if (aux.size()) {
-            totalCol = aux.at(0).toULongLong();
-        }
+        if (rows.size()) {
+            for (auto row : rows) {
 
-        reenviar = true;
-    } else if (rcv.contains("coluna_")) {
-        QStringList aux = rcv.split("coluna_");
+                QStringList aux = row.split(';');
 
-        if (aux.size()) {
-            currentCol = aux.at(0).toULongLong();
-        }
+                if (aux.size()) {
+                    int coluna = 0;
+                    TableRow table;
 
-        aux = rcv.split(';');
+                    for (auto i : aux) {
+                        switch (coluna) {
+                        case 0:
+                            table.docentry = i;
+                            break;
+                        case 1:
+                            table.StcCode = i;
+                            break;
+                        case 2:
+                            table.porcent = i;
+                            break;
+                        case 3:
+                            table.ItemCode = i;
+                            break;
+                        case 4:
+                            table.State = i;
+                            break;
+                        case 5:
+                            table.ItemName = i;
+                            break;
+                        default:
+                            break;
+                        }
 
-        if (aux.size()) {
-            int coluna = 0;
-            TableRow table;
+                        ++coluna;
+                    }
 
-            for (auto i : aux) {
-                switch (coluna) {
-                case 0:
-                    table.docentry = i;
-                    break;
-                case 1:
-                    table.StcCode = i;
-                    break;
-                case 2:
-                    table.porcent = i;
-                    break;
-                case 3:
-                    table.ItemCode = i;
-                    break;
-                case 4:
-                    table.State = i;
-                    break;
-                case 5:
-                    table.ItemName = i;
-                    break;
-                default:
-                    break;
+                    m_buffer.addData(table);
                 }
-
-                ++coluna;
             }
-
-            m_buffer.addData(table);
         }
 
         reenviar = true;
@@ -199,7 +194,7 @@ void ClientSocket::readyRead()
 
 void ClientSocket::timeoutOcurred()
 {
-    qDebug() << "<Cliente> timeout";
+    qDebug() << "<ClientSocket> timeout";
 
     if (m_timer && m_timer->isActive()) {
         m_timer->stop();
