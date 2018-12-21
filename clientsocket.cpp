@@ -142,52 +142,55 @@ void ClientSocket::readyRead()
 
         if (rows.size()) {
             for (auto row : rows) {
+                if (row.contains("finito")) {
+                    reenviar = false;
+                    fecharConexao();
+                    emit novoModelo(m_buffer);
+                } else {
+                    QStringList aux = row.split(';');
 
-                QStringList aux = row.split(';');
+                    if (aux.size()) {
+                        int coluna = 0;
+                        TableRow table;
 
-                if (aux.size()) {
-                    int coluna = 0;
-                    TableRow table;
+                        for (auto i : aux) {
+                            switch (coluna) {
+                            case 0:
+                                table.docentry = i;
+                                break;
+                            case 1:
+                                table.StcCode = i;
+                                break;
+                            case 2:
+                                table.porcent = i;
+                                break;
+                            case 3:
+                                table.ItemCode = i;
+                                break;
+                            case 4:
+                                table.State = i;
+                                break;
+                            case 5:
+                                table.ItemName = i;
+                                break;
+                            default:
+                                break;
+                            }
 
-                    for (auto i : aux) {
-                        switch (coluna) {
-                        case 0:
-                            table.docentry = i;
-                            break;
-                        case 1:
-                            table.StcCode = i;
-                            break;
-                        case 2:
-                            table.porcent = i;
-                            break;
-                        case 3:
-                            table.ItemCode = i;
-                            break;
-                        case 4:
-                            table.State = i;
-                            break;
-                        case 5:
-                            table.ItemName = i;
-                            break;
-                        default:
-                            break;
+                            ++coluna;
                         }
 
-                        ++coluna;
+                        m_buffer.addData(table);
                     }
 
-                    m_buffer.addData(table);
+                    reenviar = true;
                 }
             }
         }
-
-        reenviar = true;
-    } else if (rcv.contains("finito")) {
-        fecharConexao();
-        emit novoModelo(m_buffer);
     }
 
     if (reenviar) {
+        reenviar = false;
         enviar("login;" + m_usuario + ';' + m_senha);
     }
 }

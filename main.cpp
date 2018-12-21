@@ -14,7 +14,8 @@ int main(int argc, char *argv[])
     QObject::connect(&cli, &ClientSocket::novoModelo,
                      [=] (const CListModel &modelo) {
         QModelIndex index = modelo.index(0, 0);
-        qDebug() << modelo.data(index).toString();
+        QString valor = modelo.data(index, docentryRole).toString();
+        qDebug() << "Modelo recebido " << valor;
     });
     QObject::connect(&cli, &ClientSocket::erroConexao,
                      [=]() {
